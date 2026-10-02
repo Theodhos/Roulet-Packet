@@ -1,77 +1,64 @@
-import type { RouletteSection as RouletteSectionData, SectionTheme } from "@/types/roulette";
+import { wrapLabel } from "@/lib/wheelGeometry";
+import type { Prize, PrizeTheme } from "@/types/roulette";
 
 interface RouletteSectionProps {
-  section: RouletteSectionData;
-  sectionNumber: number;
-  theme: SectionTheme;
+  prize: Prize;
+  theme: PrizeTheme;
   wedgePath: string;
   labelTransform: string;
-  badgeTransform: string;
-  isDepleted: boolean;
+  isWinner: boolean;
+  reducedMotion: boolean;
 }
 
+const FONT_SIZE = 12.5;
+const LINE_HEIGHT = 13;
+
 export default function RouletteSection({
-  section,
-  sectionNumber,
+  prize,
   theme,
   wedgePath,
   labelTransform,
-  badgeTransform,
-  isDepleted,
+  isWinner,
+  reducedMotion,
 }: RouletteSectionProps) {
-  const gradientId = `wedge-gradient-${section.id}`;
+  const gradientId = `wedge-gradient-${prize.id}`;
+  const lines = wrapLabel(prize.name);
+  const startY = -((lines.length - 1) / 2) * LINE_HEIGHT;
 
   return (
     <g>
       <defs>
-        <radialGradient id={gradientId} cx="50%" cy="35%" r="75%">
+        <radialGradient id={gradientId} cx="42%" cy="32%" r="80%">
           <stop offset="0%" stopColor={theme.glow} />
-          <stop offset="55%" stopColor={theme.fill} />
+          <stop offset="60%" stopColor={theme.fill} />
           <stop offset="100%" stopColor={theme.fill} />
         </radialGradient>
       </defs>
 
       <path
         d={wedgePath}
-        fill={isDepleted ? "#2a2f3d" : `url(#${gradientId})`}
-        stroke="#0b0e17"
-        strokeWidth={3}
-        opacity={isDepleted ? 0.6 : 1}
+        fill={`url(#${gradientId})`}
+        stroke="#090A0E"
+        strokeWidth={2}
+        className={isWinner && !reducedMotion ? "wedge-winner-glow" : undefined}
+        style={isWinner ? { stroke: "#E7B65B", strokeWidth: 3 } : undefined}
       />
 
       <g transform={labelTransform}>
-        <text
-          textAnchor="middle"
-          y={-6}
-          fontSize={19}
-          fontWeight={800}
-          fill={isDepleted ? "#7a8194" : "#0b0e17"}
-          style={{ letterSpacing: "0.02em" }}
-        >
-          {section.name}
-        </text>
-        <text
-          textAnchor="middle"
-          y={18}
-          fontSize={14}
-          fontWeight={700}
-          fill={isDepleted ? "#5b6072" : "#0b0e17cc"}
-        >
-          {isDepleted ? "SOLD OUT" : `${section.packageCount} left`}
-        </text>
-      </g>
-
-      <g transform={badgeTransform}>
-        <circle r={14} fill="#0b0e17" stroke="#ffffff33" strokeWidth={1.5} />
-        <text
-          textAnchor="middle"
-          dominantBaseline="central"
-          fontSize={14}
-          fontWeight={700}
-          fill="#f5f5f7"
-        >
-          {sectionNumber}
-        </text>
+        {lines.map((line, i) => (
+          <text
+            key={line}
+            y={startY + i * LINE_HEIGHT}
+            textAnchor="middle"
+            dominantBaseline="central"
+            fontSize={FONT_SIZE}
+            fontWeight={700}
+            fill={theme.text}
+            style={{ letterSpacing: "0.01em" }}
+          >
+            {line}
+          </text>
+        ))}
       </g>
     </g>
   );

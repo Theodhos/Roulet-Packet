@@ -1,64 +1,101 @@
-import type { RouletteSection, SectionTheme } from "@/types/roulette";
+import type { Prize, PrizeTheme, PrizeTier } from "@/types/roulette";
 
-/** Flip to false to let packages be won infinitely without depleting stock. */
-export const ENABLE_PACKAGE_DEPLETION = true;
-
-export const TOTAL_SECTIONS = 6;
+export const TOTAL_SECTIONS = 8;
 export const SECTION_ANGLE = 360 / TOTAL_SECTIONS;
-export const SPIN_DURATION_MS = 5200;
 
-export const initialSections: RouletteSection[] = [
-  { id: 1, name: "Package 1", packageCount: 1 },
-  { id: 2, name: "Package 2", packageCount: 2 },
-  { id: 3, name: "Package 3", packageCount: 3 },
-  { id: 4, name: "Package 4", packageCount: 4 },
-  { id: 5, name: "Package 5", packageCount: 5 },
-  { id: 6, name: "Package 6", packageCount: 6 },
-];
-
-export const SECTION_THEMES: SectionTheme[] = [
-  { fill: "#f43f5e", glow: "#fda4af" },
-  { fill: "#fb923c", glow: "#fed7aa" },
-  { fill: "#facc15", glow: "#fef08a" },
-  { fill: "#34d399", glow: "#a7f3d0" },
-  { fill: "#38bdf8", glow: "#bae6fd" },
-  { fill: "#a78bfa", glow: "#ddd6fe" },
-];
-
-const MIN_EXTRA_SPINS = 5;
-const MAX_EXTRA_SPINS = 8;
-// Keep the landing point away from wedge borders so it never looks ambiguous.
-const CENTER_JITTER_LIMIT = SECTION_ANGLE / 2 - 8;
-
-function normalizeAngle(angle: number): number {
-  return ((angle % 360) + 360) % 360;
-}
+/** Total win chance for each tier — must sum to 1. */
+export const TIER_CHANCE: Record<PrizeTier, number> = {
+  low: 0.6,
+  medium: 0.3,
+  grand: 0.1,
+};
 
 /**
- * Computes the next cumulative rotation (in degrees) for the wheel so that,
- * after several full spins, `sectionIndex` lands under the fixed top pointer.
- * `currentRotation` is never reset to 0 between spins — it keeps growing so
- * the wheel always turns forward, never teleports.
+ * The 8 wedges, in wheel order. Each prize's `probability` is its tier's
+ * total chance split evenly across however many prizes share that tier —
+ * low: 0.6 / 3, medium: 0.3 / 3, grand: 0.1 / 2. `description` is the exact
+ * "You won ..." copy shown in the win popup.
  */
-export function getSpinRotation(
-  currentRotation: number,
-  sectionIndex: number
-): number {
-  const sectionCenter = sectionIndex * SECTION_ANGLE + SECTION_ANGLE / 2;
-  const jitter = (Math.random() * 2 - 1) * CENTER_JITTER_LIMIT;
-  const targetPoint = normalizeAngle(sectionCenter + jitter);
+export const PRIZES: Prize[] = [
+  {
+    id: 0,
+    name: "Full Marketing Review",
+    title: "Full Business Marketing Overview",
+    tier: "grand",
+    probability: TIER_CHANCE.grand / 2,
+    description:
+      "You won the Grand Prize — a Full Business Marketing Overview. A 60-90 minute multi-channel review covering social media, ads, email, LinkedIn, SEO, and funnels. We find what's working, where money is leaking, and build you a specific action plan to keep.",
+  },
+  {
+    id: 1,
+    name: "3 Free Posts",
+    title: "3 Free Posts",
+    tier: "low",
+    probability: TIER_CHANCE.low / 3,
+    description:
+      "You won 3 free posts for your business. Three branded social posts, designed and written, ready to publish.",
+  },
+  {
+    id: 2,
+    name: "3 Free Reels",
+    title: "3 Free Reels",
+    tier: "medium",
+    probability: TIER_CHANCE.medium / 3,
+    description:
+      "You won 3 free reels. If you have real video footage, all three are fully free. If you don't, you cover only the Higgsfield credits per reel and we handle the rest.",
+  },
+  {
+    id: 3,
+    name: "1 Free Reel",
+    title: "1 Free Reel",
+    tier: "low",
+    probability: TIER_CHANCE.low / 3,
+    description:
+      "You won 1 free reel. If you have real video footage, we produce it fully free. If you don't, you cover only the Higgsfield AI credits & we handle edit, captions and effects.",
+  },
+  {
+    id: 4,
+    name: "1 Month Free Ads",
+    title: "Meta Ads Management, 1 Month Free",
+    tier: "grand",
+    probability: TIER_CHANCE.grand / 2,
+    description:
+      "You won the Grand Prize — Meta Ads Management, 1 month free. You provide the ad creatives and text. We manage the campaign structure, audiences, pixel, optimisation and consult you weekly on what to improve. Only pay ad spend directly to Meta.",
+  },
+  {
+    id: 5,
+    name: "1-Week Content Plan",
+    title: "1 Week Social Media Content Plan + Calendar",
+    tier: "medium",
+    probability: TIER_CHANCE.medium / 3,
+    description:
+      "You won a 1 Week Social Media Content Plan + Calendar. Post ideas, formats, hooks, themes, and posting times built around your business. Yours to execute or hand to anyone.",
+  },
+  {
+    id: 6,
+    name: "20% Off Marketing",
+    title: "20% Off Social Media Marketing / Meta Ads",
+    tier: "low",
+    probability: TIER_CHANCE.low / 3,
+    description:
+      "You won 20% off your first month of Social Media Marketing or Meta Ads Management. Your choice. New engagements only.",
+  },
+  {
+    id: 7,
+    name: "Strategy Session",
+    title: "Email Marketing / LinkedIn Outreach Strategy + Planning Session",
+    tier: "medium",
+    probability: TIER_CHANCE.medium / 3,
+    description:
+      "You won a 60-90 minute strategy session. Your choice: Email Marketing or LinkedIn Outreach based on your business niche and we map the plan live.",
+  },
+];
 
-  // Rotating the wheel by R moves the point that sits at angle `a` to
-  // normalize(a + R). We need the target point to land at 0deg (the pointer).
-  const targetMod = normalizeAngle(360 - targetPoint);
-  const currentMod = normalizeAngle(currentRotation);
+/** Wedge color communicates rarity: every prize in a tier shares its tier's theme. */
+const THEME_BY_TIER: Record<PrizeTier, PrizeTheme> = {
+  low: { fill: "#2E6B8C", glow: "#6CAFCC", text: "#F5F6FA" },
+  medium: { fill: "#6C5AB0", glow: "#A192D8", text: "#F5F6FA" },
+  grand: { fill: "#C9962F", glow: "#F7D698", text: "#17140C" },
+};
 
-  let delta = targetMod - currentMod;
-  if (delta <= 0) delta += 360;
-
-  const extraSpins =
-    MIN_EXTRA_SPINS +
-    Math.floor(Math.random() * (MAX_EXTRA_SPINS - MIN_EXTRA_SPINS + 1));
-
-  return currentRotation + delta + extraSpins * 360;
-}
+export const PRIZE_THEMES: PrizeTheme[] = PRIZES.map((prize) => THEME_BY_TIER[prize.tier]);

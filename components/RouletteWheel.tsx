@@ -1,110 +1,135 @@
 "use client";
 
-import { SECTION_ANGLE, SECTION_THEMES, SPIN_DURATION_MS } from "@/lib/roulette";
-import type { RouletteSection as RouletteSectionData } from "@/types/roulette";
+import { useRef } from "react";
+import { SECTION_ANGLE, PRIZE_THEMES } from "@/lib/roulette";
+import { getWedgePath, getLabelTransform } from "@/lib/wheelGeometry";
+import { useWheelSpin } from "@/lib/useWheelSpin";
+import type { Prize } from "@/types/roulette";
 import RouletteSection from "./RouletteSection";
+import ConfettiBurst from "./ConfettiBurst";
 
 interface RouletteWheelProps {
-  sections: RouletteSectionData[];
+  prizes: Prize[];
   rotation: number;
   spinning: boolean;
+  winningIndex: number | null;
   onSpinEnd: () => void;
 }
 
 const VIEWBOX = 400;
 const CENTER = VIEWBOX / 2;
-const OUTER_RADIUS = 188;
-const LABEL_RADIUS = 118;
-const BADGE_RADIUS = 168;
-
-// Rounded to a fixed precision so the server- and client-rendered markup is
-// byte-identical — raw Math.sin/Math.cos output can differ in its last digit
-// between JS engines, which otherwise causes a hydration mismatch.
-function round(value: number): number {
-  return Math.round(value * 1000) / 1000;
-}
-
-function polarPoint(radius: number, angleDeg: number) {
-  const rad = (angleDeg * Math.PI) / 180;
-  return {
-    x: round(CENTER + radius * Math.sin(rad)),
-    y: round(CENTER - radius * Math.cos(rad)),
-  };
-}
-
-function getWedgePath(index: number): string {
-  const start = index * SECTION_ANGLE;
-  const end = start + SECTION_ANGLE;
-  const p1 = polarPoint(OUTER_RADIUS, start);
-  const p2 = polarPoint(OUTER_RADIUS, end);
-  return `M ${CENTER} ${CENTER} L ${p1.x} ${p1.y} A ${OUTER_RADIUS} ${OUTER_RADIUS} 0 0 1 ${p2.x} ${p2.y} Z`;
-}
-
-function getLabelTransform(index: number): string {
-  const centerAngle = index * SECTION_ANGLE + SECTION_ANGLE / 2;
-  const { x, y } = polarPoint(LABEL_RADIUS, centerAngle);
-  // Flip the bottom half 180deg so radial labels never render upside-down.
-  const rotation = centerAngle > 90 && centerAngle < 270 ? centerAngle - 180 : centerAngle;
-  return `translate(${x} ${y}) rotate(${rotation})`;
-}
-
-function getBadgeTransform(index: number): string {
-  const centerAngle = index * SECTION_ANGLE + SECTION_ANGLE / 2;
-  const { x, y } = polarPoint(BADGE_RADIUS, centerAngle);
-  return `translate(${x} ${y})`;
-}
+const OUTER_RADIUS = 186;
+const LABEL_RADIUS = 128;
+const HUB_RADIUS = 30;
 
 export default function RouletteWheel({
-  sections,
+  prizes,
   rotation,
   spinning,
+  winningIndex,
   onSpinEnd,
 }: RouletteWheelProps) {
+  const pointerRef = useRef<HTMLDivElement>(null);
+  const { wheelRef, finalApproach, reducedMotion } = useWheelSpin({
+    spinning,
+    rotation,
+    sectionAngle: SECTION_ANGLE,
+    onSpinEnd,
+    tickTargetRef: pointerRef,
+  });
+
   return (
-    <div className="relative aspect-square w-[min(86vw,440px)] select-none">
+    <div aria-hidden className="relative aspect-square w-[min(88vw,440px)] select-none">
       {/* Fixed pointer */}
-      <div className="absolute -top-2 left-1/2 z-20 -translate-x-1/2 drop-shadow-[0_4px_10px_rgba(0,0,0,0.6)]">
-        <svg width="40" height="46" viewBox="0 0 40 46">
-          <polygon points="20,40 3,4 37,4" fill="#f5c94b" stroke="#8a6a12" strokeWidth={1.5} />
-          <circle cx="20" cy="8" r="6" fill="#f5c94b" stroke="#8a6a12" strokeWidth={1.5} />
+      <div
+        ref={pointerRef}
+        className="absolute -top-3 left-1/2 z-20 -translate-x-1/2 drop-shadow-[0_3px_8px_rgba(0,0,0,0.55)]"
+      >
+        <svg width="34" height="42" viewBox="0 0 36 44">
+          <path
+            d="M18 40 L6.5 11 Q18 2.5 29.5 11 Z"
+            fill="#F2F3F6"
+            stroke="#0B0C10"
+            strokeWidth={1.5}
+            strokeLinejoin="round"
+          />
+          <circle cx="18" cy="11" r="5.5" fill="#E7B65B" stroke="#0B0C10" strokeWidth={1.25} />
         </svg>
       </div>
 
-      {/* Outer bezel / glow ring */}
-      <div className="absolute inset-0 rounded-full bg-gradient-to-b from-amber-200 via-amber-500 to-amber-800 shadow-[0_0_60px_10px_rgba(250,204,21,0.25)]" />
-      <div className="absolute inset-[10px] rounded-full bg-[#0b0e17] shadow-inner" />
+      {/* Outer shell: brushed bezel → recessed collar → wheel disc */}
+      <div className="absolute inset-0 rounded-full bg-gradient-to-br from-[#3c3f49] via-[#1c1e26] to-[#08090c] shadow-[0_20px_44px_-14px_rgba(0,0,0,0.7)]" />
+      <div className="absolute inset-[3px] rounded-full bg-gradient-to-b from-[#15171f] to-[#090a0e]" />
+      <div className="absolute inset-[9px] rounded-full ring-1 ring-[#E7B65B]/25" />
 
-      <div className="absolute inset-[14px] overflow-hidden rounded-full shadow-[0_0_40px_rgba(0,0,0,0.6)]">
+      <div className="absolute inset-[13px] overflow-hidden rounded-full shadow-[inset_0_2px_14px_rgba(0,0,0,0.55)]">
         <svg
+          ref={wheelRef}
           viewBox={`0 0 ${VIEWBOX} ${VIEWBOX}`}
           className="h-full w-full"
-          style={{
-            transform: `rotate(${rotation}deg)`,
-            transition: spinning
-              ? `transform ${SPIN_DURATION_MS}ms cubic-bezier(0.36, 0.03, 0.2, 1)`
-              : "none",
-          }}
-          onTransitionEnd={(event) => {
-            if (event.propertyName === "transform") onSpinEnd();
-          }}
+          style={{ willChange: "transform" }}
         >
-          {sections.map((section, index) => (
+          <defs>
+            <radialGradient id="hub-gradient" cx="38%" cy="30%" r="75%">
+              <stop offset="0%" stopColor="#3a3d47" />
+              <stop offset="55%" stopColor="#1c1e26" />
+              <stop offset="100%" stopColor="#0c0d11" />
+            </radialGradient>
+          </defs>
+
+          {prizes.map((prize, index) => (
             <RouletteSection
-              key={section.id}
-              section={section}
-              sectionNumber={index + 1}
-              theme={SECTION_THEMES[index % SECTION_THEMES.length]}
-              wedgePath={getWedgePath(index)}
-              labelTransform={getLabelTransform(index)}
-              badgeTransform={getBadgeTransform(index)}
-              isDepleted={section.packageCount <= 0}
+              key={prize.id}
+              prize={prize}
+              theme={PRIZE_THEMES[index]}
+              wedgePath={getWedgePath(CENTER, OUTER_RADIUS, SECTION_ANGLE, index)}
+              labelTransform={getLabelTransform(CENTER, LABEL_RADIUS, SECTION_ANGLE, index)}
+              isWinner={index === winningIndex}
+              reducedMotion={reducedMotion}
             />
           ))}
 
-          <circle cx={CENTER} cy={CENTER} r={26} fill="#0b0e17" stroke="#f5c94b" strokeWidth={3} />
-          <circle cx={CENTER} cy={CENTER} r={10} fill="#f5c94b" opacity={0.9} />
+          <circle
+            cx={CENTER}
+            cy={CENTER}
+            r={HUB_RADIUS}
+            fill="url(#hub-gradient)"
+            stroke="#E7B65B"
+            strokeOpacity={0.4}
+            strokeWidth={1.5}
+          />
+          <circle
+            cx={CENTER}
+            cy={CENTER}
+            r={HUB_RADIUS - 9}
+            fill="none"
+            stroke="#FFFFFF"
+            strokeOpacity={0.08}
+            strokeWidth={1}
+          />
+          <circle cx={CENTER} cy={CENTER} r={3.5} fill="#E7B65B" />
         </svg>
       </div>
+
+      {/* Final-approach focus: background settles, pointer zone gently lifts */}
+      <div
+        aria-hidden
+        className={`pointer-events-none absolute inset-0 rounded-full transition-opacity duration-500 ${
+          finalApproach ? "opacity-100" : "opacity-0"
+        }`}
+        style={{
+          background:
+            "radial-gradient(circle at 50% 6%, rgba(231,182,91,0.14), rgba(231,182,91,0) 40%), radial-gradient(circle at 50% 52%, rgba(0,0,0,0) 55%, rgba(0,0,0,0.32) 100%)",
+        }}
+      />
+
+      {!reducedMotion && winningIndex !== null && (
+        <ConfettiBurst
+          key={winningIndex}
+          seed={winningIndex * 97 + 11}
+          anchorClassName="left-1/2 top-[6%] -translate-x-1/2"
+        />
+      )}
     </div>
   );
 }

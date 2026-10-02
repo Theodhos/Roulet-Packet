@@ -2,27 +2,40 @@ interface SpinButtonProps {
   onClick: () => void;
   disabled: boolean;
   isSpinning: boolean;
+  label?: string;
+  size?: "large" | "medium";
 }
 
-export default function SpinButton({ onClick, disabled, isSpinning }: SpinButtonProps) {
+export default function SpinButton({
+  onClick,
+  disabled,
+  isSpinning,
+  label = "SPIN",
+  size = "large",
+}: SpinButtonProps) {
+  const isLarge = size === "large";
+
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="group relative rounded-full px-16 py-5 text-2xl font-extrabold tracking-widest text-[#0b0e17] transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-40 enabled:hover:scale-105 enabled:active:scale-95"
+      aria-busy={isSpinning}
+      className={`group relative rounded-full font-bold tracking-[0.08em] text-[#0B0C10] transition-all duration-150 ease-out disabled:cursor-not-allowed disabled:opacity-35 disabled:shadow-none enabled:hover:-translate-y-0.5 enabled:active:translate-y-0 enabled:active:scale-[0.97] ${
+        isLarge ? "px-14 py-4 text-lg sm:px-16 sm:py-5 sm:text-xl" : "px-10 py-3.5 text-base"
+      }`}
       style={{
-        background: "linear-gradient(180deg, #ffe27a 0%, #f5c94b 55%, #d99f1f 100%)",
+        background: "linear-gradient(180deg, #F6DDA0 0%, #E7B65B 55%, #C4903A 100%)",
         boxShadow: disabled
           ? "none"
-          : "0 0 40px rgba(245, 201, 75, 0.55), 0 8px 20px rgba(0,0,0,0.45)",
+          : "0 1px 0 rgba(255,255,255,0.4) inset, 0 10px 24px -8px rgba(231,182,91,0.55)",
       }}
     >
-      <span className="flex items-center gap-3">
+      <span className="flex items-center justify-center gap-2.5">
         {isSpinning && (
-          <span className="h-5 w-5 animate-spin rounded-full border-[3px] border-[#0b0e17]/30 border-t-[#0b0e17]" />
+          <span className="h-4 w-4 animate-spin rounded-full border-[2.5px] border-[#0B0C10]/25 border-t-[#0B0C10]" />
         )}
-        {isSpinning ? "SPINNING..." : "SPIN"}
+        {isSpinning ? "SPINNING…" : label}
       </span>
     </button>
   );
